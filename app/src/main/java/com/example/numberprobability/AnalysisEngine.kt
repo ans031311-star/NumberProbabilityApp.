@@ -1,6 +1,5 @@
 package com.example.numberprobability
 
-import kotlin.math.roundToInt
 import kotlin.random.Random
 
 data class NumberScore(
@@ -23,138 +22,216 @@ object AnalysisEngine {
     fun analyze(draws: List<List<Int>>): List<NumberScore> {
         if (draws.isEmpty()) return emptyList()
 
-        val total = IntArray(40)
-        val r5 = IntArray(40)
-        val r10 = IntArray(40)
-        val r20 = IntArray(40)
+        val totalDraws = draws.size
+        val recent5Draws = draws.take(5)
+        val recent10Draws = draws.take(10)
+        val recent20Draws = draws.take(20)
 
-        draws.forEachIndexed { index, draw ->
-            draw.forEach { n ->
-                if (n in 1..39) {
-                    total[n]++
-                    if (index < 5) r5[n]++
-                    if (index < 10) r10[n]++
-                    if (index < 20) r20[n]++
+        val totalCounts = IntArray(40)
+        val recent5Counts = IntArray(40)
+        val recent10Counts = IntArray(40)
+        val recent20Counts = IntArray(40)
+
+        draws.forEach { draw ->
+            draw.forEach { number ->
+                if (number in 1..39) {
+                    totalCounts[number]++
                 }
             }
         }
 
-        val maxTotal = (1..39).maxOf { total[it] }.coerceAtLeast(1)
-        val max5 = (1..39).maxOf { r5[it] }.coerceAtLeast(1)
-        val max10 = (1..39).maxOf { r10[it] }.coerceAtLeast(1)
-        val max20 = (1..39).maxOf { r20[it] }.coerceAtLeast(1)
+        recent5Draws.forEach { draw ->
+            draw.forEach { number ->
+                if (number in 1..39) {
+                    recent5Counts[number]++
+                }
+            }
+        }
 
-        return (1..39).map { n ->
+        recent10Draws.forEach { draw ->
+            draw.forEach { number ->
+                if (number in 1..39) {
+                    recent10Counts[number]++
+                }
+            }
+        }
 
-            val missing = draws.indexOfFirst { n in it }
-                .let { if (it == -1) draws.size else it }
+        recent20Draws.forEach { draw ->
+            draw.forEach { number ->
+                if (number in 1..39) {
+                    recent20Counts[number]++
+                }
+            }
+        }
 
-            val totalPart =
-                total[n].toDouble() / maxTotal * 30.0
+        val maxTotal = totalCounts.drop(1).maxOrNull()?.coerceAtLeast(1) ?: 1
+        val maxRecent5 = recent5Counts.drop(1).maxOrNull()?.coerceAtLeast(1) ?: 1
+        val maxRecent10 = recent10Counts.drop(1).maxOrNull()?.coerceAtLeast(1) ?: 1
+        val maxRecent20 = recent20Counts.drop(1).maxOrNull()?.coerceAtLeast(1) ?: 1
 
-            val recent20Part =
-                r20[n].toDouble() / max20 * 20.0
+        return (1..39).map { number ->
 
-            val recent10Part =
-                r10[n].toDouble() / max10 * 25.0
+            var missing = totalDraws
 
-            val recent5Part =
-                r5[n].toDouble() / max5 * 25.0
+            for (index in draws.indices) {
+                if (number in draws[index]) {
+                    missing = index
+                    break
+                }
+            }
 
-            val score =
-                totalPart +
-                recent20Part +
-                recent10Part +
-                recent5Part
+            val totalScore =
+                totalCounts[number].toDouble() / maxTotal.toDouble() * 30.0
+
+            val recent5Score =
+                recent5Counts[number].toDouble() / maxRecent5.toDouble() * 10.0
+
+            val recent10Score =
+                recent10Counts[number].toDouble() / maxRecent10.toDouble() * 15.0
+
+            val recent20Score =
+                recent20Counts[number].toDouble() / maxRecent20.toDouble() * 20.0
+
+            var weightedRecent = 0.0
+
+            draws.forEachIndexed { index, draw ->
+                if (number in draw) {
+                    val weight = (draws.size - index).toDouble() / draws.size.toDouble()
+                    weightedRecent += weight
+                }
+            }
+
+            val maxPossibleWeight =
+                (1..draws.size).sum().toDouble() / draws.size.toDouble()
+
+            val weightedScore =
+                if (maxPossibleWeight > 0.0) {
+                    weightedRecent / maxPossibleWeight * 25.0
+                } else {
+                    0.0
+                }
+
+            val finalScore =
+                totalScore +
+                recent5Score +
+                recent10Score +
+                recent20Score +
+                weightedScore
 
             NumberScore(
-                number = n,
-                totalCount = total[n],
-                recent5 = r5[n],
-                recent10 = r10[n],
-                recent20 = r20[n],
+                number = number,
+                totalCount = totalCounts[number],
+                recent5 = recent5Counts[number],
+                recent10 = recent10Counts[number],
+                recent20 = recent20Counts[number],
                 missing = missing,
-                score = score
+                score = finalScore
             )
         }.sortedByDescending { it.score }
     }
 
     fun generateCombinations(
         draws: List<List<Int>>,
-        amount: Int = 20
+        ranking: List<NumberScore>,
+        count: Int
     ): List<ComboScore> {
 
-        val ranking = analyze(draws)
+        if (ranking.isEmpty() || count <= 0) {
+            return emptyList()
+        }
 
-        if (ranking.isEmpty()) return emptyList()
+        val scoreMap = ranking.associate {
+            it.number to it.score
+        }
 
-        val candidates =
-            ranking.take(18).map { it.number }
-
-        val scoreMap =
-            ranking.associate { it.number to it.score }
-
-        val pairCounts =
-            mutableMapOf<Pair<Int, Int>, Int>()
+        val pairCounts = mutableMapOf<Pair<Int, Int>, Int>()
 
         draws.forEach { draw ->
-            val sorted = draw.sorted()
+            val sorted = draw
+                .filter { it in 1..39 }
+                .distinct()
+                .sorted()
 
             for (i in sorted.indices) {
                 for (j in i + 1 until sorted.size) {
-                    val pair =
-                        sorted[i] to sorted[j]
-
-                    pairCounts[pair] =
-                        (pairCounts[pair] ?: 0) + 1
+                    val pair = sorted[i] to sorted[j]
+                    pairCounts[pair] = (pairCounts[pair] ?: 0) + 1
                 }
             }
         }
 
-        val results =
-            mutableMapOf<List<Int>, Double>()
+        val pool = ranking
+            .take(18)
+            .map { it.number }
 
-        repeat(5000) {
+        val candidates = mutableMapOf<List<Int>, Double>()
 
-            val combo =
-                candidates
-                    .shuffled(Random.Default)
-                    .take(5)
-                    .sorted()
+        repeat(3000) {
 
-            if (combo.size != 5) return@repeat
+            if (pool.size < 5) {
+                return@repeat
+            }
+
+            val combo = pool
+                .shuffled(Random.Default)
+                .take(5)
+                .sorted()
+
+            if (combo.size != 5) {
+                return@repeat
+            }
 
             val baseScore =
-                combo.sumOf {
-                    scoreMap[it] ?: 0.0
+                combo.sumOf { number ->
+                    scoreMap[number] ?: 0.0
                 } / 5.0
 
             var pairScore = 0.0
 
             for (i in combo.indices) {
                 for (j in i + 1 until combo.size) {
-pairScore += pairCounts[
-    combo[i] to combo[j]
-] ?: 0）
+                    val pair = combo[i] to combo[j]
+                    pairScore += (pairCounts[pair] ?: 0).toDouble()
                 }
             }
 
-            val finalScore = baseScore * 0.75 + pairScore * 0.25
+            val oddCount = combo.count { it % 2 != 0 }
+            val balanceBonus =
+                if (oddCount == 2 || oddCount == 3) 4.0 else 0.0
 
-            candidates[combo] = maxOf(
-                candidates[combo] ?: 0.0,
-                finalScore
-            )
+            val lowCount = combo.count { it <= 13 }
+            val midCount = combo.count { it in 14..26 }
+            val highCount = combo.count { it >= 27 }
+
+            val zoneBonus =
+                if (lowCount > 0 && midCount > 0 && highCount > 0) {
+                    4.0
+                } else {
+                    0.0
+                }
+
+            val finalScore =
+                baseScore * 0.75 +
+                pairScore * 0.8 +
+                balanceBonus +
+                zoneBonus
+
+            val oldScore = candidates[combo]
+
+            if (oldScore == null || finalScore > oldScore) {
+                candidates[combo] = finalScore
+            }
         }
 
         return candidates
-            .map { (numbers, score) ->
+            .entries
+            .sortedByDescending { it.value }
+            .take(count)
+            .map { entry ->
                 ComboScore(
-                    numbers = numbers,
-                    score = score
+                    numbers = entry.key,
+                    score = entry.value
                 )
             }
-            .sortedByDescending { it.score }
-            .take(count)
     }
 }
