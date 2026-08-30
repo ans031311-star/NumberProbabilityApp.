@@ -133,6 +133,28 @@ object AnalysisEngine {
 
             for (i in combo.indices) {
                 for (j in i + 1 until combo.size) {
-                    pairScore +=
-                        pairCounts[
-                            combo[i] to combo[j]
+pairScore += pairCounts[
+    combo[i] to combo[j]
+] ?: 0）
+                }
+            }
+
+            val finalScore = baseScore * 0.75 + pairScore * 0.25
+
+            candidates[combo] = maxOf(
+                candidates[combo] ?: 0.0,
+                finalScore
+            )
+        }
+
+        return candidates
+            .map { (numbers, score) ->
+                ComboScore(
+                    numbers = numbers,
+                    score = score
+                )
+            }
+            .sortedByDescending { it.score }
+            .take(count)
+    }
+}

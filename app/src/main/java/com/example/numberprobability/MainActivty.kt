@@ -236,8 +236,7 @@ fun RankingScreen(
                         )
 
                         Text(
-                            text = "出
-  現 ${item.totalCount} 次",
+                            text = "出現 ${item.totalCount} 次",
 style = MaterialTheme.typography.bodySmall
 )
 }
