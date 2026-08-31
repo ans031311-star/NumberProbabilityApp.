@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1565c0">
+  <title>號碼機率分析</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, "Noto Sans TC", sans-serif;
+      background: #f4f7fb;
+      color: #1f2937;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1565c0, #1976d2);
+      color: white;
+      padding: 22px 18px;
+      border-radius: 0 0 24px 24px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 25px;
+    }
+
+    header p {
+      margin: 0;
+      opacity: .9;
+      font-size: 14px;
+    }
+
+    main {
+      max-width: 850px;
+      margin: auto;
+      padding: 16px;
+      padding-bottom: 100px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 15px;
+      box-shadow: 0 3px 14px rgba(0,0,0,.07);
+    }
+
+    h2 {
+      font-size: 19px;
+      margin-top: 0;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      border: 1px solid #d1d5db;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 16px;
+      resize: vertical;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: #1565c0;
+      color: white;
+    }
+
+    .secondary {
+      background: #e8eef7;
+      color: #1f2937;
+    }
+
+    .danger {
+      background: #ffe7e7;
+      color: #b91c1c;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      background: #f3f6fb;
+      border-radius: 14px;
+      padding: 13px 8px;
+      text-align: center;
+    }
+
+    .stat b {
+      font-size: 22px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .ball {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #1565c0;
+      color: white;
+      font-weight: bold;
+      margin: 4px;
+      font-size: 15px;
+    }
+
+    .ball.hot {
+      background: #e53935;
+    }
+
+    .ball.cold {
+      background: #607d8b;
+    }
+
+    .ball.trend {
+      background: #fb8c00;
+    }
+
+    .section-title {
+      margin-top: 14px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .ranking-row {
+      display: grid;
+      grid-template-columns: 42px 50px 1fr 55px;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 0;
+      border-bottom: 1px solid #edf0f5;
+    }
+
+    .rank {
+      font-weight: bold;
+      color: #6b7280;
+    }
+
+    .num-circle {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #1565c0;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .bar-bg {
+      height: 10px;
+      background: #e8edf4;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .bar {
+      height: 100%;
+      background: #1976d2;
+      border-radius: 10px;
+    }
+
+    .score {
+      text-align: right;
+      font-weight: bold;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .combo {
+      background: #f7f9fc;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 9px;
+    }
+
+    .combo-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .combo-score {
+      font-weight: bold;
+      color: #1565c0;
+    }
+
+    select {
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 15px;
+      background: white;
+    }
+
+    .notice {
+      background: #fff8e1;
+      border-left: 4px solid #f9a825;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    #message {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      .ranking-row {
+        grid-template-columns: 34px 42px 1fr 48px;
+      }
+
+      .stat-grid {
+        grid-template-columns: repeat(3,1fr);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>號碼機率分析</h1>
+  <p>01～39 歷史資料・熱門・冷門・近期趨勢・候選組合</p>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>歷史資料</h2>
+
+    <textarea id="drawInput"
+      placeholder="每行輸入 5 個號碼，例如：
+11,12,18,20,29
+4,14,27,32,34
+2,6,7,32,38
+
+第一行視為最新一期。"></textarea>
+
+    <div class="buttons">
+      <button class="primary" onclick="runAnalysis()">開始分析</button>
+      <button class="secondary" onclick="loadSaved()">讀取紀錄</button>
+      <button class="danger" onclick="clearData()">清除</button>
+    </div>
+
+    <div id="message"></div>
+  </div>
+
+  <div id="results" class="hidden">
+
+    <div class="card">
+      <h2>資料摘要</h2>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <b id="drawCount">0</b>
+          組資料
+        </div>
+
+        <div class="stat">
+          <b id="totalNumbers">0</b>
+          號碼次數
+        </div>
+
+        <div class="stat">
+          <b>01–39</b>
+          分析範圍
+        </div>
+      </div>
+
+      <div class="section-title">🔥 熱門號碼</div>
+      <div id="hotNumbers"></div>
+
+      <div class="section-title">❄️ 冷門號碼</div>
+      <div id="coldNumbers"></div>
+
+      <div class="section-title">📈 近期趨勢</div>
+      <div id="trendNumbers"></div>
+    </div>
+
+
+    <div class="card">
+      <h2>01～39 完整排名</h2>
+      <div class="small">
+        評分依歷史出現次數、近 20 組、近 10 組、近 5 組及近期出現程度計算。
+      </div>
+
+      <div id="ranking"></div>
+    </div>
+
+
+    <div class="card">
+      <h2>候選組合</h2>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label>產生：</label>
+
+        <select id="comboCount">
+          <option value="20">20 組</option>
+          <option value="30">30 組</option>
+          <option value="50">50 組</option>
+          <option value="90">90 組</option>
+        </select>
+
+        <button class="primary" onclick="generateCombos()">
+          重新產生
+        </button>
+      </div>
+
+      <div id="combos" style="margin-top:15px;"></div>
+    </div>
+
+
+    <div class="notice">
+      本工具顯示的是依歷史資料計算的「統計評分」，不是未來事件的真實中獎率或保證預測。
+      如果每次結果彼此獨立，歷史資料不能保證下一次會出現哪些號碼。
+    </div>
+
+  </div>
+</main>
+
+
+<script>
+
+let currentDraws = [];
+let currentRanking = [];
+
+function padNumber(n) {
+  return String(n).padStart(2, "0");
+}
+
+
+function parseDraws(text) {
+
+  const lines = text
+    .split(/\n/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+
+  const draws = [];
+
+  for (const line of lines) {
+
+    const nums = line
+      .split(/[\s,，、]+/)
+      .map(v => Number(v))
+      .filter(v => Number.isInteger(v));
+
+    const unique = [...new Set(nums)];
+
+    if (
+      unique.length !== 5 ||
+      unique.some(n => n < 1 || n > 39)
+    ) {
+      return {
+        error: "每一行必須是 5 個不重複的 01～39 號碼。"
+      };
+    }
+
+    draws.push(unique);
+  }
+
+  if (draws.length < 2) {
+    return {
+      error: "至少需要輸入 2 組資料。"
+    };
+  }
+
+  return { draws };
+}
+
+
+function countInDraws(draws, number, limit) {
+
+  return draws
+    .slice(0, Math.min(limit, draws.length))
+    .reduce((total, draw) => {
+      return total + (draw.includes(number) ? 1 : 0);
+    }, 0);
+}
+
+
+function getMissing(draws, number) {
+
+  const index = draws.findIndex(draw =>
+    draw.includes(number)
+  );
+
+  return index === -1 ? draws.length : index;
+}
+
+
+function normalize(value, max) {
+
+  if (max <= 0) return 0;
+
+  return value / max;
+}
+
+
+function analyze(draws) {
+
+  const raw = [];
+
+  for (let number = 1; number <= 39; number++) {
+
+    const totalCount =
+      countInDraws(draws, number, draws.length);
+
+    const recent5 =
+      countInDraws(draws, number, 5);
+
+    const recent10 =
+      countInDraws(draws, number, 10);
+
+    const recent20 =
+      countInDraws(draws, number, 20);
+
+    const missing =
+      getMissing(draws, number);
+
+    raw.push({
+      number,
+      totalCount,
+      recent5,
+      recent10,
+      recent20,
+      missing
+    });
+  }
+
+
+  const maxTotal =
+    Math.max(...raw.map(x => x.totalCount), 1);
+
+  const max5 =
+    Math.max(...raw.map(x => x.recent5), 1);
+
+  const max10 =
+    Math.max(...raw.map(x => x.recent10), 1);
+
+  const max20 =
+    Math.max(...raw.map(x => x.recent20), 1);
+
+
+  const ranking = raw.map(item => {
+
+    const frequency =
+      normalize(item.totalCount, maxTotal);
+
+    const r5 =
+      normalize(item.recent5, max5);
+
+    const r10 =
+      normalize(item.recent10, max10);
+
+    const r20 =
+      normalize(item.recent20, max20);
+
+    const recency =
+      1 / (1 + item.missing);
+
+
+    const score =
+      (
+        frequency * 0.30 +
+        r20 * 0.15 +
+        r10 * 0.20 +
+        r5 * 0.25 +
+        recency * 0.10
+      ) * 100;
+
+
+    return {
+      ...item,
+      score
+    };
+  });
+
+
+  ranking.sort((a,b) =>
+    b.score - a.score
+  );
+
+  return ranking;
+}
+
+
+function runAnalysis() {
+
+  const text =
+    document.getElementById("drawInput").value;
+
+  const result =
+    parseDraws(text);
+
+  const message =
+    document.getElementById("message");
+
+
+  if (result.error) {
+
+    message.style.color = "#b91c1c";
+    message.textContent = result.error;
+
+    return;
+  }
+
+
+  currentDraws = result.draws;
+
+  currentRanking =
+    analyze(currentDraws);
+
+
+  localStorage.setItem(
+    "numberProbabilityDraws",
+    text
+  );
+
+
+  message.style.color = "#15803d";
+  message.textContent =
+    "分析完成，共 " +
+    currentDraws.length +
+    " 組資料。";
+
+
+  document
+    .getElementById("results")
+    .classList.remove("hidden");
+
+
+  renderSummary();
+
+  renderRanking();
+
+  generateCombos();
+}
+
+
+function renderSummary() {
+
+  document.getElementById("drawCount")
+    .textContent = currentDraws.length;
+
+  document.getElementById("totalNumbers")
+    .textContent = currentDraws.length * 5;
+
+
+  const hot =
+    [...currentRanking]
+    .sort((a,b) =>
+      b.totalCount - a.totalCount ||
+      b.score - a.score
+    )
+    .slice(0,8);
+
+
+  const cold =
+    [...currentRanking]
+    .sort((a,b) =>
+      a.totalCount - b.totalCount ||
+      b.missing - a.missing
+    )
+    .slice(0,8);
+
+
+  const trend =
+    [...currentRanking]
+    .sort((a,b) => {
+
+      const scoreA =
+        a.recent5 * 5 +
+        a.recent10 * 2;
+
+      const scoreB =
+        b.recent5 * 5 +
+        b.recent10 * 2;
+
+      return scoreB - scoreA;
+    })
+    .slice(0,8);
+
+
+  renderBalls(
+    "hotNumbers",
+    hot,
+    "hot"
+  );
+
+  renderBalls(
+    "coldNumbers",
+    cold,
+    "cold"
+  );
+
+  renderBalls(
+    "trendNumbers",
+    trend,
+    "trend"
+  );
+}
+
+
+function renderBalls(id, items, type) {
+
+  const container =
+    document.getElementById(id);
+
+  container.innerHTML = "";
+
+  items.forEach(item => {
+
+    const ball =
+      document.createElement("span");
+
+    ball.className =
+      "ball " + type;
+
+    ball.textContent =
+      padNumber(item.number);
+
+    container.appendChild(ball);
+  });
+}
+
+
+function renderRanking() {
+
+  const container =
+    document.getElementById("ranking");
+
+  container.innerHTML = "";
+
+
+  currentRanking.forEach((item,index) => {
+
+    const row =
+      document.createElement("div");
+
+    row.className =
+      "ranking-row";
+
+
+    const score =
+      item.score.toFixed(1);
+
+
+    row.innerHTML = `
+      <div class="rank">
+        #${index + 1}
+      </div>
+
+      <div class="num-circle">
+        ${padNumber(item.number)}
+      </div>
+
+      <div>
+        <div class="bar-bg">
+          <div
+            class="bar"
+            style="width:${Math.min(item.score,100)}%">
+          </div>
+        </div>
+
+        <div class="small">
+          總 ${item.totalCount} 次｜
+          近5 ${item.recent5}｜
+          近10 ${item.recent10}｜
+          遺漏 ${item.missing}
+        </div>
+      </div>
+
+      <div class="score">
+        ${score}
+      </div>
+    `;
+
+    container.appendChild(row);
+  });
+}
+
+
+function buildPairCounts() {
+
+  const map = new Map();
+
+  currentDraws.forEach(draw => {
+
+    const sorted =
+      [...draw].sort((a,b) => a-b);
+
+    for (let i=0; i<sorted.length; i++) {
+
+      for (let j=i+1; j<sorted.length; j++) {
+
+        const key =
+          sorted[i] + "-" + sorted[j];
+
+        map.set(
+          key,
+          (map.get(key) || 0) + 1
+        );
+      }
+    }
+  });
+
+  return map;
+}
+
+
+function randomWeightedNumber(pool) {
+
+  const total =
+    pool.reduce(
+      (sum,item) =>
+        sum + Math.max(item.score,1),
+      0
+    );
+
+  let r =
+    Math.random() * total;
+
+  for (const item of pool) {
+
+    r -= Math.max(item.score,1);
+
+    if (r <= 0)
+      return item.number;
+  }
+
+  return pool[pool.length - 1].number;
+}
+
+
+function comboScore(numbers, pairCounts) {
+
+  let base = 0;
+
+  numbers.forEach(n => {
+
+    const item =
+      currentRanking.find(
+        x => x.number === n
+      );
+
+    if (item)
+      base += item.score;
+  });
+
+  base /= numbers.length;
+
+
+  let pairScore = 0;
+  let pairTotal = 0;
+
+  for (let i=0; i<numbers.length; i++) {
+
+    for (let j=i+1; j<numbers.length; j++) {
+
+      const a =
+        Math.min(numbers[i],numbers[j]);
+
+      const b =
+        Math.max(numbers[i],numbers[j]);
+
+      pairScore +=
+        pairCounts.get(a + "-" + b) || 0;
+
+      pairTotal++;
+    }
+  }
+
+
+  const pairAverage =
+    pairTotal > 0
+      ? pairScore / pairTotal
+      : 0;
+
+
+  const odd =
+    numbers.filter(n => n % 2 === 1).length;
+
+  const even =
+    5 - odd;
+
+
+  const balanceBonus =
+    (
+      (odd === 2 && even === 3) ||
+      (odd === 3 && even === 2)
+    ) ? 3 : 0;
+
+
+  return (
+    base * 0.85 +
+    pairAverage * 2 +
+    balanceBonus
+  );
+}
+
+
+function generateCombos() {
+
+  if (!currentRanking.length)
+    return;
+
+
+  const requested =
+    Number(
+      document.getElementById(
+        "comboCount"
+      ).value
+    );
+
+
+  const pool =
+    currentRanking.slice(0,20);
+
+  const pairCounts =
+    buildPairCounts();
+
+  const resultMap =
+    new Map();
+
+
+  let attempts = 0;
+
+  while (
+    resultMap.size < requested &&
+    attempts < 10000
+  ) {
+
+    attempts++;
+
+    const set =
+      new Set();
+
+
+    while (set.size < 5) {
+
+      set.add(
+        randomWeightedNumber(pool)
+      );
+    }
+
+
+    const numbers =
+      [...set].sort((a,b) => a-b);
+
+
+    const key =
+      numbers.join("-");
+
+
+    const score =
+      comboScore(
+        numbers,
+        pairCounts
+      );
+
+
+    if (
+      !resultMap.has(key) ||
+      score > resultMap.get(key).score
+    ) {
+
+      resultMap.set(
+        key,
+        {
+          numbers,
+          score
+        }
+      );
+    }
+  }
+
+
+  const combos =
+    [...resultMap.values()]
+    .sort(
+      (a,b) =>
+        b.score - a.score
+    )
+    .slice(0,requested);
+
+
+  renderCombos(combos);
+}
+
+
+function renderCombos(combos) {
+
+  const container =
+    document.getElementById("combos");
+
+  container.innerHTML = "";
+
+
+  combos.forEach((combo,index) => {
+
+    const box =
+      document.createElement("div");
+
+    box.className =
+      "combo";
+
+
+    const balls =
+      combo.numbers
+      .map(n =>
+        `<span class="ball">${padNumber(n)}</span>`
+      )
+      .join("");
+
+
+    box.innerHTML = `
+      <div class="combo-top">
+        <strong>
+          第 ${index + 1} 組
+        </strong>
+
+        <span class="combo-score">
+          評分 ${combo.score.toFixed(1)}
+        </span>
+      </div>
+
+      <div style="margin-top:7px;">
+        ${balls}
+      </div>
+    `;
+
+
+    container.appendChild(box);
+  });
+}
+
+
+function loadSaved() {
+
+  const saved =
+    localStorage.getItem(
+      "numberProbabilityDraws"
+    );
+
+
+  if (!saved) {
+
+    const message =
+      document.getElementById("message");
+
+    message.style.color = "#b45309";
+    message.textContent =
+      "目前沒有已儲存的資料。";
+
+    return;
+  }
+
+
+  document.getElementById(
+    "drawInput"
+  ).value = saved;
+
+
+  runAnalysis();
+}
+
+
+function clearData() {
+
+  document.getElementById(
+    "drawInput"
+  ).value = "";
+
+  document.getElementById(
+    "message"
+  ).textContent = "";
+
+  document.getElementById(
+    "results"
+  ).classList.add("hidden");
+
+  localStorage.removeItem(
+    "numberProbabilityDraws"
+  );
+
+  currentDraws = [];
+  currentRanking = [];
+}
+
+</script>
+
+</body>
+            </html>
