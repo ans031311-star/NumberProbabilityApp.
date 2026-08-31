@@ -62,6 +62,7 @@ fun NumberProbabilityApp() {
     val combinations =
         AnalysisEngine.generateCombinations(
             draws = draws.toList(),
+ranking = rankings,
             count = 20
         )
 
